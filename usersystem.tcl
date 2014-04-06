@@ -6,6 +6,8 @@ set botuser "bot1"
 
 bind msg  - -hidden-register register
 bind msg  - -hidden-identify identify
+bind msg  - -hidden-forget   forget
+bind msg  - -hidden-whoami   whoami
 bind mode - * modechange
 bind pub  - reinterpretuserdb getusers
 bind pub  - regainoperators setupmodes
@@ -54,6 +56,33 @@ proc identify {nick userhost handle query} {
 		}
 	}
 	puthelp "PRIVMSG $nick :Identification failed. Try checking the your password."
+}
+
+proc forget {nick userhost handle query} {
+	global users
+	for {set i 0} {$i<[llength $users]} {incr i} {
+		set user [lindex $users $i]
+		if {$nick==[dict get $user idented]} {
+			dict set user idented 0
+			set users [lreplace $users $i $i $user]
+			puthelp "PRIVMSG $nick :Logoff was successfull."
+			setupmodes
+			return
+		}
+	}
+	puthelp "PRIVMSG $nick :Logoff was unsuccessfull. Did you change your nick?"
+}
+
+proc whoami {nick userhost handle query} {
+	global users
+	for {set i 0} {$i<[llength $users]} {incr i} {
+		set user [lindex $users $i]
+		if {$nick==[dict get $user idented]} {
+			puthelp "PRIVMSG $nick :[dict get $user name]"
+			return
+		}
+	}
+	puthelp "PRIVMSG $nick :You are not identified."
 }
 
 proc getusers {args} {
