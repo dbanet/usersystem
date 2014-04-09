@@ -1,3 +1,7 @@
+############################
+##### START OF GLOBALS #####
+############################
+
 set userdb  "./scripts/usersystem/user.db"
 set channel "#habrahabr"
 
@@ -19,6 +23,19 @@ set users { }
 global username
 set botnickname $username
 
+######################
+### END OF GLOBALS ###
+######################
+### START OF PROCS ###
+######################
+
+#/**
+# * Adds a new user entry (a line) to the $userdb file (global, should be
+# * set up), and reparses the $userdb file to the $users list of the User
+# * dictionaries (by calling the 'getusers' function).
+# * TODO: refuse to register if a user is already registered.
+# * TODO: refuse to register if a user is identified (should logoff first).
+# */
 proc register {nick userhost handle query} {
 	global userdb
 
@@ -39,6 +56,14 @@ proc register {nick userhost handle query} {
 	getusers
 }
 
+#/**
+# * Identifies the user by checking if the specified username and password
+# * contains in any of the User dicitionaries in the global $user list of User
+# * dictionaries. If so, sets the User dictionary's IDENTED field to the $nick
+# * (first argument) of the logging in user.
+# *
+# * @param nick the nick of the logging in user.
+# */
 proc identify {nick userhost handle query} {
 	global users
 	set login    [lindex [split $query] 0]
@@ -55,9 +80,14 @@ proc identify {nick userhost handle query} {
 			}
 		}
 	}
-	puthelp "PRIVMSG $nick :Identification failed. Try checking the your password."
+	puthelp "PRIVMSG $nick :Identification failed. Try checking the password."
 }
 
+#/**
+# * If the user is currently identified, alters the 'idented'
+# * field in his User dictionary to 0 (logoff).
+# * If not, private messages the user about the error.
+# */
 proc forget {nick userhost handle query} {
 	global users
 	for {set i 0} {$i<[llength $users]} {incr i} {
@@ -73,6 +103,11 @@ proc forget {nick userhost handle query} {
 	puthelp "PRIVMSG $nick :Logoff was unsuccessfull. Did you change your nick?"
 }
 
+#/**
+# * Checks if the user is currently identified as someone,
+# * and if it is, private messages him with the username.
+# * TODO: use the 'identified' function.
+# */
 proc whoami {nick userhost handle query} {
 	global users
 	for {set i 0} {$i<[llength $users]} {incr i} {
@@ -85,6 +120,15 @@ proc whoami {nick userhost handle query} {
 	puthelp "PRIVMSG $nick :You are not identified."
 }
 
+#/**
+# * Parses the user databse file $userdb (global, should be set) and fills
+# * the global list $users with Users dictionary (name, password, aop, idented=0).
+# * The contents of file $userdb must conform to the following: each line of the
+# * file describes one user and ends with CRLF. Its syntax is as follows:
+# *     name password aop
+# * where 'name', 'password' and 'aop' are substrings of non-space (0x20) characters
+# * specifying the 'name', 'password' and 'aop' fields in the User dictionary.
+# */
 proc getusers {args} {
 	global userdb users botuser botnickname
 	set users { }
@@ -105,6 +149,30 @@ proc getusers {args} {
 	close $userdbfl
 }
 
+#/**
+# * This procedure should be called every time a user mode change
+# * on a channel occurs.
+# *
+# * It ignores any mode change, that is not -o or +o, and just returns.
+# * If the bot itself gets opped (+o on $botnickname (global, should be set)),
+# * calls setupops.
+# *
+# * If an udentified, or identified but with AOP flag not set to 'NO' user
+# * gets +o, deops the user, and public messages the modechanger that this
+# * is not allowed.
+# *
+# * If an identified user WITH AOP flag set to 'YES' gets an operator mode
+# * (+o), does nothing and returns.
+# *
+# * If an identified user WITH AOP flag set to 'YES' gets DEOPPED (-o),
+# * ops the user, and public messages the modechanger that this is not allowed.
+# *
+# * @param nick     the nick   of the modechanger
+# * @param userhost the uhost  of the modechanger
+# * @param hangle   the hangle of the modechanger
+# * @param mode     the mode that has just been applied (matches to (^[+-].$))
+# * @param target   the nick of the user the mode gets applied to
+# */
 proc modechange { nick userhost handle channel mode target } {
 	global users botnickname
 
@@ -142,6 +210,13 @@ proc modechange { nick userhost handle channel mode target } {
 	}
 }
 
+#/**
+# * Checks, that everyone, who should be opped (means, who is
+# * currently identified, and has the AOP flag set to YES), are
+# * opped, and who should NOT be opped, are NOT opped.
+# *
+# * If this is not true, deops and/or ops users for this to become true.
+# */
 proc setupmodes {args} {
 	global users channel
 	putlog "Regaining ops on channel $channel..."
@@ -168,5 +243,22 @@ proc setupmodes {args} {
 
 	flushmode $channel
 }
+
+#/**
+# * Returns the User dictionary if there is a user identified
+# * for the specified nick, returns 0 otherwise.
+# */
+proc identified {nick} {
+	global users
+	foreach user $users {
+		if {[dict get $user idented]==$nick} {
+			return $user
+		}
+	}
+	return 0
+}
+####################
+### END OF PROCS ###
+####################
 
 getusers
