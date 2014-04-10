@@ -2,19 +2,12 @@
 ##### START OF GLOBALS #####
 ############################
 
-set userdb  "./scripts/usersystem/user.db"
-set channel "#habrahabr"
-
-### the bot's account (in userdb)
-set botuser "bot1"
-
-
-
-set users { }
-
-### bot's nick
-global username
-set botnickname $username
+set userdb  "./scripts/usersystem/user.db" ;# path to user database on disk (should be r/w)
+set channel "#habrahabr"                   ;# currently this script can support only one channel
+set botuser "bot1"                         ;# the bot's account's name in userdb (there should be one)
+global username                            ;# the bot's nick on the IRC (a global eggdrop variable)
+set botnickname $username                  ;# if $username one time stops working... ;)
+set users { }                              ;# where userdb gets parsed (the actual struct bot works with)
 
 ######################
 ### END OF GLOBALS ###
@@ -39,6 +32,8 @@ bind pub       -         regainoperators   setupmodes
 bind time      -         "* * * * *"       setupmodes
 bind mode      -         *                 modechange
 bind nick      -         *                 nickchange
+bind part      -         *                 userexit
+bind sign      -         *                 userexit
 #####################################################
 
 ######################
@@ -262,14 +257,14 @@ proc setupmodes {args} {
 }
 
 #/**
-# * Handles nickchanges, should be called every nick change
+# * Handles nickchanges, should be called every nick change.
 # * Checks if a user that changes the nick is identified, and if he/she is,
 # * alters his/her 'name' field in his/her User dictionary to the new nick.
 # */
 proc nickchange {nick userhost handle channel newnick} {
 	global users
 	if {[identified $nick]!=0} {
-		### Find the User struct and set 'idented' $newnick (see the code above)
+		### Find the User struct and set 'idented' to $newnick
 		for {set i 0} {$i<[llength $users]} {incr i} {
 			set user [lindex $users $i]
 			if {$nick==[dict get $user idented]} {
@@ -295,6 +290,27 @@ proc identified {nick} {
 	}
 	return 0
 }
+
+#/**
+# * Handles parts and sign offs, should be called every such event.
+# * Checks if an exitted (parted or signed off) user was identified, and if
+# * he/she was, sets his/her 'idented' field in his/her User dictionary to 0.
+# */
+proc userexit {nick userhost handle channel reason} {
+	global users
+	if {[identified $nick]!=0} {
+		### Find the User struct and set 'idented' to 0
+		for {set i 0} {$i<[llength $users]} {incr i} {
+			set user [lindex $users $i]
+			if {$nick==[dict get $user idented]} {
+				dict set user idented 0
+				set users [lreplace $users $i $i $user]
+				return
+			}
+		}
+	}
+}
+
 ####################
 ### END OF PROCS ###
 ####################
