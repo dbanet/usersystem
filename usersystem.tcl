@@ -8,14 +8,7 @@ set channel "#habrahabr"
 ### the bot's account (in userdb)
 set botuser "bot1"
 
-bind msg  - -hidden-register register
-bind msg  - -hidden-identify identify
-bind msg  - -hidden-forget   forget
-bind msg  - -hidden-whoami   whoami
-bind mode - * modechange
-bind pub  - reinterpretuserdb getusers
-bind pub  - regainoperators setupmodes
-bind time - "* * * * *" setupmodes
+
 
 set users { }
 
@@ -25,6 +18,31 @@ set botnickname $username
 
 ######################
 ### END OF GLOBALS ###
+######################
+### START OF BINDS ###
+######################
+
+#####################################################
+#### TYPE #### FLAG #### MASK         #### PROC  ####
+#####################################################
+#=================PRIVATE COMMANDS===================
+bind msg       -         -hidden-register  register
+bind msg       -         -hidden-identify  identify
+bind msg       -         -hidden-forget    forget
+bind msg       -         -hidden-whoami    whoami
+
+#=================PUBLIC COMMANDS====================
+bind pub       -         reinterpretuserdb getusers
+bind pub       -         regainoperators   setupmodes
+
+#==================MISCELLANEOUS=====================
+bind time      -         "* * * * *"       setupmodes
+bind mode      -         *                 modechange
+bind nick      -         *                 nickchange
+#####################################################
+
+######################
+###  END OF BINDS  ###
 ######################
 ### START OF PROCS ###
 ######################
@@ -90,10 +108,14 @@ proc identify {nick userhost handle query} {
 # */
 proc forget {nick userhost handle query} {
 	global users
+	### this code basically MODIFIES the User struct (getting the pointer to it,
+	### not a copy (which foreach does), so that's why is it so complicated
+	### (for with iterator, set users [lreplace ...] etc...
 	for {set i 0} {$i<[llength $users]} {incr i} {
 		set user [lindex $users $i]
 		if {$nick==[dict get $user idented]} {
 			dict set user idented 0
+			### this  replaces THE old User struct in $users list with the modified one
 			set users [lreplace $users $i $i $user]
 			puthelp "NOTICE $nick :Logoff was successfull."
 			setupmodes
@@ -237,6 +259,27 @@ proc setupmodes {args} {
 	}
 
 	flushmode $channel
+}
+
+#/**
+# * Handles nickchanges, should be called every nick change
+# * Checks if a user that changes the nick is identified, and if he/she is,
+# * alters his/her 'name' field in his/her User dictionary to the new nick.
+# */
+proc nickchange {nick userhost handle channel newnick} {
+	global users
+	if {[identified $nick]!=0} {
+		### Find the User struct and set 'idented' $newnick (see the code above)
+		for {set i 0} {$i<[llength $users]} {incr i} {
+			set user [lindex $users $i]
+			if {$nick==[dict get $user idented]} {
+				dict set user idented $newnick
+				set users [lreplace $users $i $i $user]
+				puthelp "NOTICE $newnick :Nick change was handled successfully, you are still identified as [dict get $user name]."
+				return
+			}
+		}
+	}
 }
 
 #/**
