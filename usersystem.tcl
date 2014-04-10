@@ -50,7 +50,7 @@ proc register {nick userhost handle query} {
 
 	### reporting user ev.thing's ok
 	set reply "Registered you, $nick, with password [lindex [split $query] 0]."
-	puthelp "PRIVMSG $nick :$reply"
+	puthelp "NOTICE $nick :$reply"
 
 	### rereading the userdb
 	getusers
@@ -74,13 +74,13 @@ proc identify {nick userhost handle query} {
 			if {[dict get $user password]==$password} {
 				dict set user idented $login
 				set users [lreplace $users $i $i $user]
-				puthelp "PRIVMSG $nick :Identified you successfully as $login."
+				puthelp "NOTICE $nick :Identified you successfully as $login."
 				setupmodes
 				return
 			}
 		}
 	}
-	puthelp "PRIVMSG $nick :Identification failed. Try checking the password."
+	puthelp "NOTICE $nick :Identification failed. Try checking the password."
 }
 
 #/**
@@ -95,29 +95,24 @@ proc forget {nick userhost handle query} {
 		if {$nick==[dict get $user idented]} {
 			dict set user idented 0
 			set users [lreplace $users $i $i $user]
-			puthelp "PRIVMSG $nick :Logoff was successfull."
+			puthelp "NOTICE $nick :Logoff was successfull."
 			setupmodes
 			return
 		}
 	}
-	puthelp "PRIVMSG $nick :Logoff was unsuccessfull. Did you change your nick?"
+	puthelp "NOTICE $nick :Logoff was unsuccessfull. Did you change your nick?"
 }
 
 #/**
 # * Checks if the user is currently identified as someone,
 # * and if it is, private messages him with the username.
-# * TODO: use the 'identified' function.
 # */
 proc whoami {nick userhost handle query} {
-	global users
-	for {set i 0} {$i<[llength $users]} {incr i} {
-		set user [lindex $users $i]
-		if {$nick==[dict get $user idented]} {
-			puthelp "PRIVMSG $nick :[dict get $user name]"
-			return
-		}
+	if {[set user [identified $nick]]!=0} {
+		puthelp "NOTICE $nick :[dict get $user name]"
+	} else {
+		puthelp "NOTICE $nick :You are not identified."
 	}
-	puthelp "PRIVMSG $nick :You are not identified."
 }
 
 #/**
