@@ -19,10 +19,10 @@ set users { }                              ;# where userdb gets parsed (the actu
 #### TYPE #### FLAG #### MASK         #### PROC  ####
 #####################################################
 #=================PRIVATE COMMANDS===================
-bind msg       -         -hidden-register  register
-bind msg       -         -hidden-identify  identify
-bind msg       -         -hidden-forget    forget
-bind msg       -         -hidden-whoami    whoami
+bind msg       -         register          register
+bind msg       -         identify          identify
+bind msg       -         forget            forget
+bind msg       -         whoami            whoami
 
 #=================PUBLIC COMMANDS====================
 bind pub       -         reinterpretuserdb getusers
@@ -46,27 +46,40 @@ bind sign      -         *                 userexit
 # * Adds a new user entry (a line) to the $userdb file (global, should be
 # * set up), and reparses the $userdb file to the $users list of the User
 # * dictionaries (by calling the 'getusers' function).
-# * TODO: refuse to register if a user is already registered.
-# * TODO: refuse to register if a user is identified (should logoff first).
 # */
 proc register {nick userhost handle query} {
-	global userdb
+	global userdb users
 
-	### new user entry
+	### checking if a user is already registered"
+	if {[lsearch $users "name $nick*"]!=-1} {
+		puthelp "NOTICE $nick :Someone has already registered with username $nick, registration failed."
+		return
+	}
+
+	### checking if a user is already identified
+	if {[set user [identified $nick]]!=0} {
+		puthelp "NOTICE $nick :You are already identified as [dict get $user name], you cannot proceed. Logoff first."
+		return
+	}
+
+	### all good, forming the new user entry
 	set userstr "$nick [lindex [split $query] 0] no"
 
-	### adding it to userdb
+	### adding it to the userdb
 	set userdbfl [open $userdb a+]
 	puts $userdbfl $userstr
 	flush $userdbfl
 	close $userdbfl
 
 	### reporting user ev.thing's ok
-	set reply "Registered you, $nick, with password [lindex [split $query] 0]."
-	puthelp "NOTICE $nick :$reply"
+	puthelp "NOTICE $nick :Registered you, $nick, with password [lindex [split $query] 0]."
 
-	### rereading the userdb
-	getusers
+	### adding the new user's User dictionary to the global list $users (part of proc 'getusers')
+	dict set user name     [lindex [split $userstr] 0]
+	dict set user password [lindex [split $userstr] 1]
+	dict set user aop      [lindex [split $userstr] 2]
+	dict set user idented  0
+	lappend users $user
 }
 
 #/**
