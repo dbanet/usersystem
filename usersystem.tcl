@@ -75,6 +75,7 @@ proc register {nick userhost handle query} {
 	puthelp "NOTICE $nick :Registered you, $nick, with password [lindex [split $query] 0]."
 
 	### adding the new user's User dictionary to the global list $users (part of proc 'getusers')
+	set user [dict create]
 	dict set user name     [lindex [split $userstr] 0]
 	dict set user password [lindex [split $userstr] 1]
 	dict set user aop      [lindex [split $userstr] 2]
@@ -161,6 +162,7 @@ proc getusers {args} {
 	### reading users database
 	set userdbfl [open $userdb r+]
 	foreach userstr [split [read -nonewline $userdbfl] "\n"] {
+		set user [dict create]
 		dict set user name     [lindex [split $userstr] 0]
 		dict set user password [lindex [split $userstr] 1]
 		dict set user aop      [lindex [split $userstr] 2]
