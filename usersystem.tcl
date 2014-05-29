@@ -99,7 +99,7 @@ proc identify {nick userhost handle query} {
 		set user [lindex $users $i]
 		if {$login==[dict get $user name]} {
 			if {[dict get $user password]==$password} {
-				dict set user idented $login
+				dict set user idented $nick
 				set users [lreplace $users $i $i $user]
 				puthelp "NOTICE $nick :Identified you successfully as $login."
 				setupmodes
@@ -245,11 +245,12 @@ proc modechange { nick userhost handle channel mode target } {
 # * If this is not true, deops and/or ops users for this to become true.
 # */
 proc setupmodes {args} {
-	global users channel
+	global users channel botuser botnickname
 	putlog "Regaining ops on channel $channel..."
 
 	### opping everyone who should be opped
 	foreach user $users {
+		if {[dict get $user name]==$botuser} {dict set user idented $botnickname}
 		putlog "User [dict get $user name] is identified as [dict get $user idented]"
 		if {[dict get $user idented]!=0 && [dict get $user aop]=="yes"} {
 			pushmode $channel +o [dict get $user idented]
